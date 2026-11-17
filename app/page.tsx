@@ -8,18 +8,21 @@ const Globe = dynamic(() => import("../components/Globe"), { ssr: false });
 
 export default function Home() {
   return (
-    <main className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-[#111827] via-[#050b14] to-[#1e1b4b] text-white">
+    // Main tag se 'overflow-hidden' aur 'h-screen' nikal kar 'min-h-screen' kar diya hai
+    <main className="relative w-full min-h-screen bg-gradient-to-br from-[#111827] via-[#050b14] to-[#1e1b4b] text-white">
       
-      {/* 1. Navbar Component */}
+      {/* Navbar Component */}
       <Navbar />
 
-      {/* 2. Hero Component */}
-      <Hero />
+      {/* Hero Section (Peha Hissa jismein Globe aur Text hai) */}
+      <section className="relative w-full h-screen overflow-hidden">
+        <Hero />
+        <div className="absolute inset-0 z-0">
+          <Globe />
+        </div>
+      </section>
 
-      {/* 3. 3D Globe Background */}
-      <div className="absolute inset-0 z-0">
-        <Globe />
-      </div>
+      {/* Yahan aapke naye sections aayenge jese (Destinations, About Us wagera) */}
       
     </main>
   );
