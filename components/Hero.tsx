@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Hero() {
   return (
     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 w-full text-center pointer-events-none px-6 flex flex-col items-center mt-6 md:mt-0">
@@ -15,14 +17,14 @@ export default function Hero() {
       {/* Buttons Container */}
       <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-5 w-full max-w-5xl pointer-events-auto px-4 sm:px-0">
         
-        {/* 1. Book a Flight */}
-        <button className="relative w-full sm:w-auto md:w-64 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white py-3 text-base rounded-full font-bold transition-all duration-300 shadow-[0_0_25px_rgba(37,99,235,0.5)] hover:shadow-[0_0_40px_rgba(37,99,235,0.7)] ring-2 ring-blue-500/30 tracking-wide transform hover:-translate-y-1 cursor-pointer z-10">
+        {/* 1. Book a Flight (Now a Link pointing to /air-ticketing) */}
+        <Link href="/air-ticketing" className="relative flex justify-center items-center w-full sm:w-auto md:w-64 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white py-3 text-base rounded-full font-bold transition-all duration-300 shadow-[0_0_25px_rgba(37,99,235,0.5)] hover:shadow-[0_0_40px_rgba(37,99,235,0.7)] ring-2 ring-blue-500/30 tracking-wide transform hover:-translate-y-1 cursor-pointer z-10">
           Book a Flight
-        </button>
+        </Link>
 
-        {/* 2. Get Your Visa (Mobile: Default Orange/Black | Desktop: Default Transparent -> Hover Orange/Black) */}
+        {/* 2. Get Your Visa */}
         <button className="relative w-full sm:w-auto md:w-44 bg-gradient-to-r from-amber-400 to-orange-400 md:from-white/10 md:to-white/5 hover:from-amber-400 hover:to-orange-400 border border-transparent md:border-white/20 hover:border-transparent backdrop-blur-md group py-3 text-base rounded-full font-bold transition-all duration-300 shadow-[0_0_40px_rgba(245,158,11,0.6)] md:shadow-[0_0_25px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(245,158,11,0.6)] ring-2 ring-amber-500/50 md:ring-white/10 hover:ring-amber-500/50 tracking-wide transform hover:-translate-y-1 cursor-pointer z-10">
-          <span className=" md:text-transparent bg-none md:bg-clip-text md:bg-gradient-to-r md:from-amber-300 md:to-orange-400 opacity-100 md:opacity-75 group-hover:opacity-100 group-hover:text-black group-hover:bg-none transition-all duration-300">
+          <span className="text-black md:text-transparent bg-none md:bg-clip-text md:bg-gradient-to-r md:from-amber-300 md:to-orange-400 opacity-100 md:opacity-75 group-hover:opacity-100 group-hover:text-black group-hover:bg-none transition-all duration-300">
             Get Your Visa
           </span>
         </button>
