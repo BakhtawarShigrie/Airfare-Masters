@@ -9,7 +9,7 @@ export default function Navbar() {
 
   return (
     <header className="absolute top-0 left-0 w-full z-20 pointer-events-auto">
-      {/* Top Bar */}
+      {/* Top Bar (Desktop Only) */}
       <div className="hidden lg:flex justify-between items-center px-6 lg:px-12 py-2 border-b border-white/10 text-xs text-gray-300 bg-black/10 backdrop-blur-[2px] relative">
         <div className="flex items-center gap-6 z-10">
           <div className="flex items-center gap-2 hover:text-white cursor-pointer transition">
@@ -56,6 +56,7 @@ export default function Navbar() {
           </div>
         </Link>
 
+        {/* Desktop Navigation Links */}
         <div className="hidden lg:flex items-center gap-7 text-sm font-medium">
           <Link href="#" className="hover:text-blue-400 transition-colors">Home</Link>
           <Link href="#" className="hover:text-blue-400 transition-colors">Air Ticketing</Link>
@@ -66,6 +67,7 @@ export default function Navbar() {
           <Link href="#" className="hover:text-blue-400 transition-colors">About Us</Link>
         </div>
 
+        {/* Mobile Menu Toggle Button */}
         <button 
           className="lg:hidden text-white p-2 focus:outline-none hover:text-blue-400 transition"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -78,18 +80,50 @@ export default function Navbar() {
       <div 
         className={`lg:hidden absolute left-4 right-4 mt-2 overflow-hidden rounded-2xl bg-white/5 backdrop-blur-xl transition-all duration-500 ease-in-out z-20 ${
           isMobileMenuOpen 
-            ? "max-h-[500px] opacity-100 py-6 border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]" 
+            ? "max-h-[650px] opacity-100 py-6 border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]" 
             : "max-h-0 opacity-0 py-0 border border-transparent shadow-none"
         }`}
       >
-        <div className="flex flex-col items-center gap-5 text-sm font-medium">
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">Home</Link>
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">Air Ticketing</Link>
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">World Tours</Link>
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">Hotels</Link>
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">Visa Services</Link>
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">Contact</Link>
-          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-2">About Us</Link>
+        <div className="flex flex-col items-center gap-4 text-sm font-medium">
+          {/* Links */}
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">Home</Link>
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">Air Ticketing</Link>
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">World Tours</Link>
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">Hotels</Link>
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">Visa Services</Link>
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">Contact</Link>
+          <Link href="#" className="hover:text-blue-400 transition-colors w-full text-center py-1.5">About Us</Link>
+
+          {/* Divider */}
+          <div className="w-3/4 h-[1px] bg-white/10 my-2"></div>
+
+          {/* Mobile Contact Info */}
+          <div className="flex flex-col items-center gap-3 text-gray-300 mb-2">
+            <div className="flex items-center gap-2 hover:text-white transition">
+              <FaPhoneAlt size={12} />
+              <span>+92 308 4813513</span>
+            </div>
+            <div className="flex items-center gap-2 hover:text-white transition">
+              <FaEnvelope size={12} />
+              <span>info.aifaremasters@gmail.com</span>
+            </div>
+          </div>
+
+          {/* Mobile Social Icons */}
+          <div className="flex items-center gap-4">
+            <Link href="#" className="bg-white text-black p-2 rounded-full hover:bg-gray-300 transition">
+              <FaFacebookF size={12} />
+            </Link>
+            <Link href="#" className="bg-white text-black p-2 rounded-full hover:bg-gray-300 transition">
+              <FaInstagram size={12} />
+            </Link>
+            <Link href="#" className="bg-white text-black p-2 rounded-full hover:bg-gray-300 transition">
+              <FaTiktok size={12} />
+            </Link>
+            <Link href="#" className="bg-white text-black p-2 rounded-full hover:bg-gray-300 transition">
+              <FaYoutube size={12} />
+            </Link>
+          </div>
         </div>
       </div>
     </header>
