@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import Navbar from "@/components/Navbar";
 import ScrollFrameCanvas from "./components/ScrollFrameCanvas";
 import FlightSearchWidget from "./components/FlightSearchWidget";
+import TicketingBottomSections from "./components/TicketingBottomSections";
 
 const POPULAR_ROUTES = [
   {
@@ -56,7 +57,7 @@ export default function AirTicketingPage() {
       <section
         ref={bookingSectionRef}
         id="book-flight"
-        className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-14 pt-16 pb-20"
+        className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-14 pt-16 pb-10"
       >
         <FlightSearchWidget />
 
@@ -100,6 +101,9 @@ export default function AirTicketingPage() {
           </div>
         </div>
       </section>
+
+      {/* Bottom Sections: Smartest Way, Journey in Numbers, Airline Partners Marquee, FAQ & CTA */}
+      <TicketingBottomSections onBookFlightClick={scrollToBooking} />
     </main>
   );
 }
