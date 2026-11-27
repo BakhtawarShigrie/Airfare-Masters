@@ -1,126 +1,302 @@
-"use client";
+'use client';
 
-import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { ALL_TOURS } from "../data";
-import { TourPackage } from "../types";
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import Link from 'next/link';
 
-const TOTAL_FRAMES = 446;
-const FRAME_FOLDER = "/Tours";
-
-function getFramePath(frameNumber: number): string {
-  const clamped = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(frameNumber)));
-  return `${FRAME_FOLDER}/frame${clamped}.jpg`;
+interface TourSection {
+  id: string;
+  navLabel: string;
+  packageTitle: string;
+  location: string;
+  duration: string;
+  slug: string;
+  startFrame: number;
+  endFrame: number;
+  jumpFrame: number;
+  includes: string[];
 }
 
-function getActiveTourForFrame(frame: number): TourPackage | null {
-  for (const tour of ALL_TOURS) {
-    if (frame >= tour.frameStart && frame <= tour.frameEnd) {
-      return tour;
+const TOTAL_FRAMES = 446;
+
+const TOUR_SECTIONS: TourSection[] = [
+  {
+    id: 'skardu',
+    navLabel: 'SKARDU',
+    packageTitle: 'SKARDU 5 NIGHT 6 DAYS TOUR PACKAGE',
+    location: 'SKARDU BALTISTAN',
+    duration: '6 Days',
+    slug: 'skardu',
+    startFrame: 1,
+    endFrame: 95,
+    jumpFrame: 1,
+    includes: [
+      'Return Air Tickets (Lahore - Skardu - Lahore)',
+      'Hotel Accommodation',
+      'Private Transportation',
+      'Daily Breakfast & Dinner',
+      'Sightseeing as per Itinerary',
+      'Airport Transfers',
+    ],
+  },
+  {
+    id: 'japan',
+    navLabel: 'JAPAN',
+    packageTitle: 'JAPAN TOKYO & OSAKA TOUR PACKAGE',
+    location: 'TOKYO & OSAKA, JAPAN',
+    duration: '7 Days',
+    slug: 'japan',
+    startFrame: 96,
+    endFrame: 195,
+    jumpFrame: 135,
+    includes: [
+      'Return International Air Tickets',
+      '4-Star Hotel Accommodation',
+      'Bullet Train (Shinkansen) & Transfers',
+      'Daily Breakfast',
+      'Guided Sightseeing (Tokyo, Mt. Fuji & Osaka)',
+      'Japan Visa Assistance & Airport Transfers',
+    ],
+  },
+  {
+    id: 'thailand',
+    navLabel: 'THAILAND',
+    packageTitle: 'THAILAND BANGKOK & PATTAYA TOUR PACKAGE',
+    location: 'BANGKOK & PATTAYA, THAILAND',
+    duration: '6 Days',
+    slug: 'thailand',
+    startFrame: 196,
+    endFrame: 285,
+    jumpFrame: 250,
+    includes: [
+      'Return International Air Tickets',
+      'Hotel Accommodation',
+      'Coral Island Tour with Lunch',
+      'Daily Breakfast',
+      'City Sightseeing & Private Transfers',
+      'Thailand Visa Assistance & Airport Transfers',
+    ],
+  },
+  {
+    id: 'uzbekistan',
+    navLabel: 'UZBEKISTAN',
+    packageTitle: 'UZBEKISTAN TASHKENT & SAMARKAND TOUR PACKAGE',
+    location: 'TASHKENT & SAMARKAND, UZBEKISTAN',
+    duration: '4 & 8 Days',
+    slug: 'uzbekistan',
+    startFrame: 286,
+    endFrame: 375,
+    jumpFrame: 320,
+    includes: [
+      'Return Direct Air Tickets (Lahore - Tashkent - Lahore)',
+      'Hotel Accommodation',
+      'Afrosiyob High-Speed Bullet Train',
+      'Daily Breakfast',
+      'Chimgan Mountains & Samarkand Sightseeing',
+      'Uzbekistan E-Visa & Airport Transfers',
+    ],
+  },
+  {
+    id: 'china',
+    navLabel: 'CHINA',
+    packageTitle: 'CHINA BEIJING & SHANGHAI TOUR PACKAGE',
+    location: 'BEIJING & SHANGHAI, CHINA',
+    duration: '7 Days',
+    slug: 'china',
+    startFrame: 376,
+    endFrame: 446,
+    jumpFrame: 415,
+    includes: [
+      'Return International Air Tickets',
+      '4-Star Hotel Accommodation',
+      'High-Speed Rail & Private Transportation',
+      'Daily Breakfast',
+      'Great Wall & Forbidden City Sightseeing',
+      'China Visa Assistance & Airport Transfers',
+    ],
+  },
+];
+
+function getSectionVisibility(frame: number, section: TourSection): number {
+  const transitionFrames = 12;
+  const { startFrame, endFrame } = section;
+
+  // Keep the first section (Skardu) directly visible at Frame 1 with zero initial fade/blur delay
+  if (startFrame === 1) {
+    if (frame > endFrame + 2) {
+      return 0;
     }
+    if (frame > endFrame - transitionFrames) {
+      const progress = (endFrame - frame) / transitionFrames;
+      return Math.max(0, Math.min(1, progress));
+    }
+    return 1;
   }
-  return null;
+
+  if (frame < startFrame - 2 || frame > endFrame + 2) {
+    return 0;
+  }
+
+  // Smooth fade & de-blur in at the start of section frames
+  if (frame < startFrame + transitionFrames) {
+    const progress = (frame - startFrame) / transitionFrames;
+    return Math.max(0, Math.min(1, progress));
+  }
+
+  // Smooth fade & blur out at the end of section frames
+  if (frame > endFrame - transitionFrames) {
+    const progress = (endFrame - frame) / transitionFrames;
+    return Math.max(0, Math.min(1, progress));
+  }
+
+  return 1;
 }
 
 export default function ToursScrollExperience() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const imagesRef = useRef<Array<HTMLImageElement | null>>(
-    new Array(TOTAL_FRAMES).fill(null)
+  const navRef = useRef<HTMLElement | null>(null);
+  const navButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const imagesRef = useRef<(HTMLImageElement | null)[]>(
+    new Array(TOTAL_FRAMES + 1).fill(null)
   );
-
-  const currentFrameRef = useRef<number>(1);
   const targetFrameRef = useRef<number>(1);
-  const lastDrawnFrameRef = useRef<number>(-1);
+  const currentFrameRef = useRef<number>(1);
+  const lastRenderedFrameRef = useRef<number>(0);
 
-  const [currentFrame, setCurrentFrame] = useState<number>(1);
-  const [loadedCount, setLoadedCount] = useState<number>(0);
+  const [smoothFrame, setSmoothFrame] = useState<number>(1);
+  const [initialLoaded, setInitialLoaded] = useState<boolean>(false);
 
+  // Keep Navbar in its default top-of-page state even while scrolling on /tours
   useEffect(() => {
-    let isMounted = true;
-    let animationFrameId = 0;
+    const win = window as unknown as Record<string, unknown>;
+    const hadOwnScrollY = Object.prototype.hasOwnProperty.call(window, 'scrollY');
+    const hadOwnPageYOffset = Object.prototype.hasOwnProperty.call(
+      window,
+      'pageYOffset'
+    );
+    const origScrollYDesc = Object.getOwnPropertyDescriptor(window, 'scrollY');
+    const origPageYOffsetDesc = Object.getOwnPropertyDescriptor(
+      window,
+      'pageYOffset'
+    );
 
+    try {
+      Object.defineProperty(window, 'scrollY', {
+        configurable: true,
+        get: () => 0,
+      });
+      Object.defineProperty(window, 'pageYOffset', {
+        configurable: true,
+        get: () => 0,
+      });
+    } catch {
+      // Ignore if environment disallows redefining scrollY
+    }
+
+    return () => {
+      try {
+        if (hadOwnScrollY && origScrollYDesc) {
+          Object.defineProperty(window, 'scrollY', origScrollYDesc);
+        } else {
+          delete win.scrollY;
+        }
+
+        if (hadOwnPageYOffset && origPageYOffsetDesc) {
+          Object.defineProperty(window, 'pageYOffset', origPageYOffsetDesc);
+        } else {
+          delete win.pageYOffset;
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    };
+  }, []);
+
+  // Draw frame onto canvas with cover aspect ratio
+  const drawFrame = useCallback((frameIndex: number) => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const drawFrame = (frameNum: number) => {
-      const idx = Math.max(0, Math.min(TOTAL_FRAMES - 1, Math.round(frameNum) - 1));
-      let img = imagesRef.current[idx];
+    const clampedIndex = Math.max(1, Math.min(TOTAL_FRAMES, Math.round(frameIndex)));
+    let img = imagesRef.current[clampedIndex];
 
-      if (!img || !img.complete || img.naturalWidth === 0) {
-        for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
-          const prev = imagesRef.current[idx - offset];
-          if (prev && prev.complete && prev.naturalWidth > 0) {
-            img = prev;
-            break;
-          }
-          const next = imagesRef.current[idx + offset];
-          if (next && next.complete && next.naturalWidth > 0) {
-            img = next;
-            break;
-          }
+    // Fallback to nearest loaded frame if current frame is still decoding
+    if (!img || !img.complete || img.naturalWidth === 0) {
+      for (let offset = 1; offset <= 25; offset++) {
+        const prev = imagesRef.current[clampedIndex - offset];
+        if (prev && prev.complete && prev.naturalWidth > 0) {
+          img = prev;
+          break;
+        }
+        const next = imagesRef.current[clampedIndex + offset];
+        if (next && next.complete && next.naturalWidth > 0) {
+          img = next;
+          break;
         }
       }
+    }
 
-      if (!img || !img.complete || img.naturalWidth === 0) return;
+    if (!img || !img.complete || img.naturalWidth === 0) return;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const displayWidth = canvas.clientWidth;
-      const displayHeight = canvas.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = window.innerWidth;
+    const displayHeight = window.innerHeight;
 
-      if (
-        canvas.width !== Math.round(displayWidth * dpr) ||
-        canvas.height !== Math.round(displayHeight * dpr)
-      ) {
-        canvas.width = Math.round(displayWidth * dpr);
-        canvas.height = Math.round(displayHeight * dpr);
-      }
+    if (
+      canvas.width !== Math.floor(displayWidth * dpr) ||
+      canvas.height !== Math.floor(displayHeight * dpr)
+    ) {
+      canvas.width = Math.floor(displayWidth * dpr);
+      canvas.height = Math.floor(displayHeight * dpr);
+    }
 
-      ctx.save();
-      ctx.scale(dpr, dpr);
+    ctx.save();
+    ctx.scale(dpr, dpr);
 
-      const imgRatio = img.naturalWidth / img.naturalHeight;
-      const canvasRatio = displayWidth / displayHeight;
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const canvasRatio = displayWidth / displayHeight;
 
-      let drawWidth = displayWidth;
-      let drawHeight = displayHeight;
-      let offsetX = 0;
-      let offsetY = 0;
+    let renderWidth = displayWidth;
+    let renderHeight = displayHeight;
+    let offsetX = 0;
+    let offsetY = 0;
 
-      if (canvasRatio > imgRatio) {
-        drawHeight = displayWidth / imgRatio;
-        offsetY = (displayHeight - drawHeight) / 2;
-      } else {
-        drawWidth = displayHeight * imgRatio;
-        offsetX = (displayWidth - drawWidth) / 2;
-      }
+    if (canvasRatio > imgRatio) {
+      renderWidth = displayWidth;
+      renderHeight = displayWidth / imgRatio;
+      offsetY = (displayHeight - renderHeight) / 2;
+    } else {
+      renderHeight = displayHeight;
+      renderWidth = displayHeight * imgRatio;
+      offsetX = (displayWidth - renderWidth) / 2;
+    }
 
-      ctx.fillStyle = "#040916";
-      ctx.fillRect(0, 0, displayWidth, displayHeight);
-      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-      ctx.restore();
-    };
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
+    ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+    ctx.restore();
+  }, []);
 
-    const loadImageAt = (zeroIdx: number): Promise<void> => {
+  // Preload frames progressively (first batch immediately, rest in background)
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadSingleFrame = (index: number): Promise<void> => {
       return new Promise((resolve) => {
-        if (imagesRef.current[zeroIdx]) {
+        if (imagesRef.current[index]) {
           resolve();
           return;
         }
         const img = new Image();
-        img.decoding = "async";
-        img.src = getFramePath(zeroIdx + 1);
+        img.src = `/Tours/frame${index}.jpg`;
         img.onload = () => {
-          if (!isMounted) return;
-          imagesRef.current[zeroIdx] = img;
-          setLoadedCount((prev) => prev + 1);
-          if (zeroIdx === 0 && lastDrawnFrameRef.current === -1) {
-            lastDrawnFrameRef.current = 1;
-            drawFrame(1);
+          if (!isCancelled) {
+            imagesRef.current[index] = img;
+            if (index === 1) {
+              setInitialLoaded(true);
+              drawFrame(1);
+            }
           }
           resolve();
         };
@@ -128,264 +304,322 @@ export default function ToursScrollExperience() {
       });
     };
 
-    const preloadFrames = async () => {
-      // Load initial frames immediately
-      const firstBatch = [];
-      for (let i = 0; i < Math.min(20, TOTAL_FRAMES); i++) {
-        firstBatch.push(loadImageAt(i));
+    const preloadAll = async () => {
+      const priorityBatch: Promise<void>[] = [];
+      for (let i = 1; i <= 35; i++) {
+        priorityBatch.push(loadSingleFrame(i));
       }
-      await Promise.all(firstBatch);
+      await Promise.all(priorityBatch);
+      if (!isCancelled) {
+        setInitialLoaded(true);
+        drawFrame(currentFrameRef.current);
+      }
 
-      // Load remaining frames in smooth batches
-      const batchSize = 25;
-      for (let start = 20; start < TOTAL_FRAMES; start += batchSize) {
-        if (!isMounted) break;
-        const batch = [];
-        for (let i = start; i < Math.min(start + batchSize, TOTAL_FRAMES); i++) {
-          batch.push(loadImageAt(i));
+      const chunkSize = 20;
+      for (let start = 36; start <= TOTAL_FRAMES; start += chunkSize) {
+        if (isCancelled) break;
+        const batch: Promise<void>[] = [];
+        for (let i = start; i < start + chunkSize && i <= TOTAL_FRAMES; i++) {
+          batch.push(loadSingleFrame(i));
         }
         await Promise.all(batch);
       }
     };
 
-    preloadFrames();
+    preloadAll();
 
+    return () => {
+      isCancelled = true;
+    };
+  }, [drawFrame]);
+
+  // Listen to scroll and resize events
+  useEffect(() => {
     const handleScroll = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const scrollable = rect.height - window.innerHeight;
+      const container = containerRef.current;
+      if (!container) return;
 
-      if (scrollable <= 0) {
-        targetFrameRef.current = 1;
-        return;
-      }
+      const rect = container.getBoundingClientRect();
+      const scrollableDistance = container.offsetHeight - window.innerHeight;
+      if (scrollableDistance <= 0) return;
 
-      const scrolled = -rect.top;
-      const progress = Math.max(0, Math.min(1, scrolled / scrollable));
+      const scrolled = Math.max(0, Math.min(scrollableDistance, -rect.top));
+      const progress = scrolled / scrollableDistance;
       targetFrameRef.current = 1 + progress * (TOTAL_FRAMES - 1);
     };
 
-    const handleResize = () => drawFrame(currentFrameRef.current);
+    const handleResize = () => {
+      drawFrame(currentFrameRef.current);
+    };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize);
     handleScroll();
 
-    const loop = () => {
-      if (!isMounted) return;
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [drawFrame]);
+
+  // Slow, smooth RAF interpolation loop for cinematic frame playback
+  useEffect(() => {
+    let animationId: number;
+
+    const tick = () => {
       const diff = targetFrameRef.current - currentFrameRef.current;
-      if (Math.abs(diff) > 0.05) {
-        currentFrameRef.current += diff * 0.2;
+      if (Math.abs(diff) > 0.015) {
+        currentFrameRef.current += diff * 0.055;
       } else {
         currentFrameRef.current = targetFrameRef.current;
       }
 
       const rounded = Math.round(currentFrameRef.current);
-      if (rounded !== lastDrawnFrameRef.current) {
-        lastDrawnFrameRef.current = rounded;
+      if (rounded !== lastRenderedFrameRef.current) {
+        lastRenderedFrameRef.current = rounded;
         drawFrame(rounded);
-        setCurrentFrame(rounded);
       }
 
-      animationFrameId = requestAnimationFrame(loop);
+      setSmoothFrame((prev) =>
+        Math.abs(prev - currentFrameRef.current) > 0.06
+          ? currentFrameRef.current
+          : prev
+      );
+
+      animationId = requestAnimationFrame(tick);
     };
 
-    animationFrameId = requestAnimationFrame(loop);
+    animationId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationId);
+  }, [drawFrame]);
 
-    return () => {
-      isMounted = false;
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
+  // Scroll smoothly to the exact target frame when a destination is clicked
+  const handleJumpToSection = (section: TourSection) => {
+    const container = containerRef.current;
+    if (!container) return;
 
-  const jumpToFrame = (frameNumber: number) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const containerTop = window.scrollY + rect.top;
-    const scrollable = rect.height - window.innerHeight;
-    const ratio = (frameNumber - 1) / (TOTAL_FRAMES - 1);
+    const scrollableDistance = container.offsetHeight - window.innerHeight;
+    const currentScroll =
+      document.documentElement.scrollTop || document.body.scrollTop || 0;
+    const containerTop = container.getBoundingClientRect().top + currentScroll;
+
+    const targetProgress = (section.jumpFrame - 1) / (TOTAL_FRAMES - 1);
+    const targetScrollY = containerTop + targetProgress * scrollableDistance;
+
     window.scrollTo({
-      top: containerTop + ratio * scrollable,
-      behavior: "smooth",
+      top: targetScrollY,
+      behavior: 'smooth',
     });
   };
 
-  const activeTour = getActiveTourForFrame(currentFrame);
-  const progressPercent = Math.round(
-    ((currentFrame - 1) / (TOTAL_FRAMES - 1)) * 100
-  );
-  const bufferPercent = Math.min(
-    100,
-    Math.round((loadedCount / TOTAL_FRAMES) * 100)
-  );
+  const activeSection =
+    TOUR_SECTIONS.find(
+      (sec) =>
+        Math.round(smoothFrame) >= sec.startFrame &&
+        Math.round(smoothFrame) <= sec.endFrame
+    ) || TOUR_SECTIONS[0];
+
+  // Auto-center active destination pill inside the horizontally scrollable mobile bar
+  useEffect(() => {
+    const navEl = navRef.current;
+    const activeBtn = navButtonRefs.current[activeSection.id];
+    if (!navEl || !activeBtn) return;
+
+    const targetLeft =
+      activeBtn.offsetLeft - navEl.clientWidth / 2 + activeBtn.clientWidth / 2;
+
+    navEl.scrollTo({
+      left: Math.max(0, targetLeft),
+      behavior: 'smooth',
+    });
+  }, [activeSection.id]);
 
   return (
     <section
       ref={containerRef}
-      aria-label="Airfare Masters World Tours Interactive Showcase"
-      className="relative w-full h-[680vh] bg-[#040916]"
+      className="relative w-full h-[1600vh] bg-slate-950 select-none"
     >
-      {/* Sticky Full-Screen Frame Canvas */}
-      <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
-        <canvas ref={canvasRef} className="block w-full h-full object-cover" />
-
-        {/* Readability Overlay */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#040916]/85 via-[#040916]/45 to-[#040916]/30"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#040916]/90 via-transparent to-[#040916]/55"
+      {/* Sticky Fullscreen Viewport */}
+      <div className="sticky top-0 left-0 w-full h-screen overflow-hidden bg-slate-950">
+        {/* Scroll-Driven Frame Canvas */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full block"
         />
 
-        {/* Active Tour Overlay Card */}
-        <div className="relative z-10 h-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-14 flex items-center pt-16 pb-24">
-          {ALL_TOURS.map((tour) => {
-            const isVisible =
-              currentFrame >= tour.frameStart && currentFrame <= tour.frameEnd;
+        {/* Light Edge Vignette so Background Scenery Remains Fully Visible */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-slate-950/45 via-slate-950/15 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/60 to-transparent" />
+
+        {/* Loading State Indicator */}
+        {!initialLoaded && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/90 text-white">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-amber-400 border-t-transparent mb-3" />
+            <p className="text-sm tracking-widest uppercase text-slate-300">
+              Loading World Tours...
+            </p>
+          </div>
+        )}
+
+        {/* Per-Section Tour Content on Transparent Background with Blurry Enter/Exit Animation */}
+        <div className="relative z-20 mx-auto h-full max-w-7xl px-5 sm:px-10 lg:px-14 flex items-center">
+          {TOUR_SECTIONS.map((tour) => {
+            const visibility = getSectionVisibility(smoothFrame, tour);
+            const isVisible = visibility > 0.02;
+            const blurPx = (1 - visibility) * 18;
+            const translateY = (1 - visibility) * 26;
+            const scale = 0.96 + visibility * 0.04;
 
             return (
               <div
-                key={tour.slug}
-                className={`w-full max-w-2xl transition-all duration-500 ${
-                  isVisible
-                    ? "opacity-100 translate-y-0 pointer-events-auto relative"
-                    : "opacity-0 translate-y-6 pointer-events-none absolute"
+                key={tour.id}
+                aria-hidden={!isVisible}
+                style={{
+                  opacity: visibility,
+                  filter: blurPx < 0.05 ? 'none' : `blur(${blurPx.toFixed(2)}px)`,
+                  transform: `translate3d(0, ${translateY.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`,
+                  transition:
+                    'opacity 260ms cubic-bezier(0.22, 1, 0.36, 1), filter 260ms cubic-bezier(0.22, 1, 0.36, 1), transform 260ms cubic-bezier(0.22, 1, 0.36, 1)',
+                }}
+                className={`absolute left-5 sm:left-10 lg:left-14 max-w-xl w-[calc(100%-2.5rem)] sm:w-full bg-transparent p-2 sm:p-4 text-white ${
+                  isVisible ? 'pointer-events-auto' : 'pointer-events-none'
                 }`}
               >
-                <div className="rounded-3xl bg-[#071224]/75 backdrop-blur-xl border border-white/15 p-6 sm:p-8 shadow-[0_25px_70px_rgba(0,0,0,0.65)] text-white">
-                  {/* Top Badges */}
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="px-3 py-1 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 text-[11px] font-bold tracking-wider uppercase">
-                      {tour.badge}
-                    </span>
-                    <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-[11px] font-bold tracking-wider uppercase">
-                      {tour.location} &bull; {tour.durationLabel}
-                    </span>
-                  </div>
-
-                  {/* Tour Heading */}
-                  <h2 className="mt-4 text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                    {tour.cardTitle}
-                  </h2>
-
-                  {tour.subtitle && (
-                    <p className="mt-2 text-xs sm:text-sm font-semibold text-amber-300">
-                      {tour.subtitle}
-                    </p>
-                  )}
-
-                  {/* Package Includes List */}
-                  <div className="mt-5">
-                    <div className="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-2.5">
-                      Package Includes
-                    </div>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {tour.highlights.map((item) => (
-                        <li
-                          key={item}
-                          className="flex items-start gap-2 text-xs sm:text-[13px] text-slate-200"
-                        >
-                          <span className="text-sky-400 font-bold mt-0.5">
-                            &#10003;
-                          </span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Bottom Price & Details Button */}
-                  <div className="mt-7 pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="text-[10px] font-bold tracking-widest uppercase text-slate-400">
-                        Starting Package Price
-                      </div>
-                      <div className="text-2xl sm:text-3xl font-extrabold text-sky-400">
-                        {tour.startingPrice}
-                      </div>
-                    </div>
-
-                    <Link
-                      href={`/tours/${tour.slug}`}
-                      className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600 hover:from-sky-300 hover:to-indigo-500 text-white font-bold text-sm tracking-wide shadow-[0_10px_28px_rgba(14,165,233,0.4)] hover:shadow-[0_14px_34px_rgba(14,165,233,0.6)] transition-all"
+                {/* Top Location & Duration Badges */}
+                <div className="flex flex-wrap items-center gap-2.5 mb-3.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/35 border border-amber-400/60 px-3.5 py-1 text-xs font-semibold tracking-wider uppercase text-amber-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
+                    <svg
+                      className="w-3.5 h-3.5 text-amber-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
                     >
-                      <span>View Details</span>
-                      <span
-                        aria-hidden="true"
-                        className="transition-transform duration-200 group-hover:translate-x-1"
-                      >
-                        &rarr;
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    {tour.location}
+                  </span>
+
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/35 border border-sky-400/50 px-3.5 py-1 text-xs font-semibold tracking-wide text-sky-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
+                    <svg
+                      className="w-3.5 h-3.5 text-sky-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    {tour.duration}
+                  </span>
+                </div>
+
+                {/* Tour Package Main Title */}
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-tight text-white mb-4 drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)]">
+                  {tour.packageTitle}
+                </h2>
+
+                {/* Package Includes Heading */}
+                <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-amber-400 mb-3 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                  Package Includes:
+                </p>
+
+                {/* Package Includes Checklist */}
+                <ul className="space-y-2 mb-6">
+                  {tour.includes.map((item, idx) => (
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2.5 text-sm sm:text-base font-medium text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]"
+                    >
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/30 border border-emerald-400/70 text-emerald-300">
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
                       </span>
-                    </Link>
-                  </div>
+                      <span className="leading-snug">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* View Full Tour Details CTA Button */}
+                <div className="flex items-center gap-3">
+                  <Link
+                    href={`/tours/${tour.slug}`}
+                    className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-3 text-sm sm:text-base font-bold text-slate-950 shadow-lg shadow-black/40 hover:from-amber-400 hover:to-orange-400 active:scale-[0.98] transition-all duration-200"
+                  >
+                    <span>View Tour Details</span>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+                      />
+                    </svg>
+                  </Link>
                 </div>
               </div>
             );
           })}
-
-          {/* Scenic Transition Bridge Between Frame Ranges */}
-          {!activeTour && (
-            <div className="max-w-lg rounded-3xl bg-[#071224]/65 backdrop-blur-md border border-white/10 p-6 text-white">
-              <div className="text-[11px] font-bold tracking-widest uppercase text-sky-400">
-                WORLD TOURS BY AIRFARE MASTERS
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold mt-1">
-                Keep Scrolling to Explore Next Destination
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 mt-2">
-                Scroll down to discover our curated international group &amp;
-                family packages, or select a destination below.
-              </p>
-            </div>
-          )}
         </div>
 
-        {/* Bottom HUD: Destination Quick Jump Tabs + Frame Progress */}
-        <div className="absolute bottom-5 inset-x-0 px-6 sm:px-10 lg:px-14 z-20">
-          <div className="max-w-7xl mx-auto rounded-2xl bg-slate-950/80 backdrop-blur-md border border-white/10 px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            {/* Quick Destination Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
-              {ALL_TOURS.map((tour, index) => {
-                const isCurrent = activeTour?.slug === tour.slug;
-                return (
-                  <button
-                    key={tour.slug}
-                    type="button"
-                    onClick={() => jumpToFrame(tour.frameStart + 5)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      isCurrent
-                        ? "bg-sky-500 text-slate-950 font-bold shadow-sm"
-                        : "bg-white/[0.06] hover:bg-white/[0.14] text-slate-200"
-                    }`}
-                  >
-                    {index + 1}. {tour.location}
-                  </button>
-                );
-              })}
-            </div>
+        {/* Centered Bottom Destinations Navigation Bar (Uppercase, Mobile Side Margins, Scrollable Without Scrollbar) */}
+        <div className="fixed bottom-4 sm:bottom-5 left-1/2 -translate-x-1/2 z-30 w-max max-w-[calc(100vw-2rem)] sm:max-w-[95vw]">
+          <nav
+            ref={navRef}
+            aria-label="Tour Destinations"
+            className="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto rounded-full border border-white/15 bg-slate-950/65 backdrop-blur-md px-2.5 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.7)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {TOUR_SECTIONS.map((section) => {
+              const isActive = activeSection.id === section.id;
 
-            {/* Progress Bar */}
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-[11px] font-mono text-sky-300">
-                Frame {String(currentFrame).padStart(3, "0")} / {TOTAL_FRAMES}
-              </span>
-              <div className="w-28 sm:w-36 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-sky-400 to-amber-400 transition-all duration-75"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              {bufferPercent < 100 && (
-                <span className="hidden sm:inline text-[10px] text-slate-400">
-                  {bufferPercent}%
-                </span>
-              )}
-            </div>
-          </div>
+              return (
+                <button
+                  key={section.id}
+                  ref={(el) => {
+                    navButtonRefs.current[section.id] = el;
+                  }}
+                  type="button"
+                  onClick={() => handleJumpToSection(section)}
+                  className={`shrink-0 whitespace-nowrap uppercase tracking-wider rounded-full px-3.5 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md shadow-amber-500/30 scale-[1.03]'
+                      : 'text-slate-200 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {section.navLabel}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </div>
     </section>
